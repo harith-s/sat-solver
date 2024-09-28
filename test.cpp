@@ -188,3 +188,5 @@ int main()
 //     }
 //     return DPLL(formula, truth_vals);
 // }
+// int UP(std::vector<Clause> formula, std::vector<int> truth_vals);
+// 

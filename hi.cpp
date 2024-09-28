@@ -6,6 +6,62 @@
 
 using namespace std;
 // assuming that indicies are the literal names
+
+// checks for the number of variables and clauses
+
+void numInfo(string s, int &nC, int &nV)
+{
+    stringstream ss(s);
+    string word;
+    ss >> word;
+    ss >> word;
+    ss >> word;
+    nV = stoi(word);
+    ss >> word;
+    nC = stoi(word);
+    return;
+}
+
+// this is to put literals given a string containing the literals
+
+void putLiterals(string s, vector<Literal> &clause)
+{
+    stringstream ss(s);
+    string word;
+    int i = 0;
+    int tp;
+    while (ss >> word)
+    {
+        tp = stoi(word);
+        if (tp == 0)
+        {
+            return;
+        }
+        else
+        {
+            clause[i].type = tp;
+            clause[i].abs_type = abs(tp);
+            i++;
+        }
+    }
+}
+
+// checking the number of literals in the string
+
+int numLiterals(string s)
+{
+    stringstream ss(s);
+    string word;
+    int count = 0;
+    while (ss >> word)
+    {
+        if (word != "0")
+            count++;
+    }
+    return count;
+}
+
+// class for Literal - its name and whether it is a positive literal or negative 
 class Literal
 {
 
@@ -33,6 +89,9 @@ public:
     }
 };
 
+
+// class containing a vector of literals and sat of the clause
+
 class Clause
 {
 public:
@@ -52,6 +111,9 @@ public:
         sat = -1;
     }
 };
+
+
+// to manually take in the formula 
 
 std::vector<Clause> getFormula()
 {
@@ -80,6 +142,9 @@ std::vector<Clause> getFormula()
     }
     return formula;
 }
+
+// heuristics for choosing the variable (right now its random)
+
 int chooseVar(std::vector<int> truth_vals)
 {
     std::vector<int> unassigned;
@@ -90,39 +155,8 @@ int chooseVar(std::vector<int> truth_vals)
     }
     return unassigned[rand() % unassigned.size()];
 }
-int UP(std::vector<Clause> formula, std::vector<int> truth_vals);
-int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals);
 
-bool modDPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
-{
-    // sat = -1 means that the formula is neither sat nor unsat
-    // sat = 0 means that there is a conflict
-    // sat = 1 means that the formula is true
-
-    int sat = UnitProp(formula, truth_vals);
-
-    if (sat == 0)
-        return false;
-    if (sat == 1)
-        return true;
-
-    // control goes here if the formula is neither sat or unsat
-
-    int literal_type = chooseVar(truth_vals);
-
-    truth_vals[literal_type] = 0;
-
-    // run DPLL on the updated truth_table
-
-    bool isSatFalse = modDPLL(formula, truth_vals);
-
-    if (isSatFalse)
-        return true;
-
-    truth_vals[literal_type] = 1;
-
-    return modDPLL(formula, truth_vals);
-}
+// Does unit propgation returns -1 if decisions can be made; 0 if formula is unsat and 1 if formula sat
 
 int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
@@ -133,6 +167,7 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     while (hasChanged)
     {
         hasChanged = false;
+        bool sat = false;
         for (auto &clause : formula)
         {
             if (clause.sat == -1)
@@ -190,6 +225,7 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
                     hasChanged = true;
                 }
             }
+            
         }
     }
     for (int i = 1; i < truth_vals.size(); i++)
@@ -200,51 +236,37 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     return 1;
 }
 
-void putLiterals(string s, vector<Literal> &clause)
-{
-    stringstream ss(s);
-    string word;
-    int i = 0;
-    int tp;
-    while (ss >> word)
-    {
-        tp = stoi(word);
-        if (tp == 0)
-        {
-            return;
-        }
-        else
-        {
-            clause[i].type = tp;
-            clause[i].abs_type = abs(tp);
-            i++;
-        }
-    }
-}
-int numLiterals(string s)
-{
-    stringstream ss(s);
-    string word;
-    int count = 0;
-    while (ss >> word)
-    {
-        if (word != "0")
-            count++;
-    }
-    return count;
-}
+// unit prop and decision put into a function
 
-void numInfo(string s, int &nC, int &nV)
+bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
-    stringstream ss(s);
-    string word;
-    ss >> word;
-    ss >> word;
-    ss >> word;
-    nV = stoi(word);
-    ss >> word;
-    nC = stoi(word);
-    return;
+    // sat = -1 means that the formula is neither sat nor unsat
+    // sat = 0 means that there is a conflict
+    // sat = 1 means that the formula is true
+
+    int sat = UnitProp(formula, truth_vals);
+
+    if (sat == 0)
+        return false;
+    if (sat == 1)
+        return true;
+
+    // control goes here if the formula is neither sat or unsat
+
+    int literal_type = chooseVar(truth_vals);
+
+    truth_vals[literal_type] = 0;
+
+    // run DPLL on the updated truth_table
+
+    bool isSatFalse = DPLL(formula, truth_vals);
+
+    if (isSatFalse)
+        return true;
+
+    truth_vals[literal_type] = 1;
+
+    return DPLL(formula, truth_vals);
 }
 
 int main()
@@ -254,7 +276,7 @@ int main()
     {
         string file = "sat_testcase/uf20-0" + to_string(file_no) + ".cnf";
         
-        file = "input.txt";
+        // file = "input.txt";
         
         ifstream inputFile(file);
 
@@ -290,6 +312,6 @@ int main()
         inputFile.close();
 
         std::vector<int> ttable(nVar + 1, -1);
-        if (not(modDPLL(formula, ttable))) cout << "Error!";
+        if (not(DPLL(formula, ttable))) cout << "Error!";
     }
 }
