@@ -12,24 +12,24 @@ class Literal
 public:
     int type;
     int abs_type;
-    int value;
+    // int value;
     Literal()
     {
         type = 0;
         abs_type = abs(type);
-        value = -1;
+        // value = -1;
     }
     Literal(int tp)
     {
         type = tp;
         abs_type = abs(type);
-        value = -1;
+        // value = -1;
     }
     void operator=(Literal l)
     {
         type = l.type;
         abs_type = abs(type);
-        value = l.value;
+        // value = l.value;
     }
 };
 
@@ -93,114 +93,55 @@ int chooseVar(std::vector<int> truth_vals)
 int UP(std::vector<Clause> formula, std::vector<int> truth_vals);
 int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals);
 
-// if (literal.type > 0 && truth_vals[literal.type] == 1 || (literal.type < 0 && truth_vals[literal_type] == 0)){
-//                 clause.sat = 1;
-//                 break;
-//             }
-//             if (literal.type > 0) literal.value = truth_vals[literal.type] == -1 ? -1 : 1;
-//             else literal.value = truth_vals[-literal.type] == -1 ? -1 : 1;
-
-bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
-{
-    int sat = UnitProp(formula, truth_vals);
-    if (sat == 0)
-        return false;
-    if (sat == 1)
-        return true;
-    int literal_type = chooseVar(truth_vals);
-    truth_vals[literal_type] = 0;
-
-    for (auto &clause : formula)
-    {
-        clause.sat = -1;
-        bool unsat = true;
-        for (auto &literal : clause.c)
-        {
-            // (literal.type > 0 && truth_vals[literal.type] == 1 || (literal.type < 0 && truth_vals[literal_type] == 0))
-            int val = truth_vals[abs(literal.type)];
-            if (val == -1)
-                literal.value = -1;
-            else
-                literal.value = literal.type > 0 ? val : (val == 1 ? 0 : 1);
-
-            if (literal.value == -1 || literal.value == 1)
-            {
-                unsat = false;
-                if (literal.value == 1)
-                    clause.sat = 1;
-            }
-        }
-        if (unsat)
-            clause.sat = 0;
-    }
-
-    bool isSatFalse = DPLL(formula, truth_vals);
-    if (isSatFalse)
-        return true;
-
-    truth_vals[literal_type] = 1;
-
-    for (auto &clause : formula)
-    {
-        clause.sat = -1;
-        bool unsat = true;
-        for (auto &literal : clause.c)
-        {
-            // (literal.type > 0 && truth_vals[literal.type] == 1 || (literal.type < 0 && truth_vals[literal_type] == 0))
-            int val = truth_vals[abs(literal.type)];
-            if (val == -1)
-                literal.value = -1;
-            else
-                literal.value = literal.type > 0 ? val : (val == 1 ? 0 : 1);
-
-            if (literal.value == -1 || literal.value == 1)
-            {
-                unsat = false;
-                if (literal.value == 1)
-                    clause.sat = 1;
-            }
-        }
-        if (unsat)
-            clause.sat = 0;
-    }
-    return DPLL(formula, truth_vals);
-}
-
 bool modDPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
+    // sat = -1 means that the formula is neither sat nor unsat
+    // sat = 0 means that there is a conflict
+    // sat = 1 means that the formula is true
+
     int sat = UnitProp(formula, truth_vals);
+
     if (sat == 0)
         return false;
     if (sat == 1)
         return true;
+
+    // control goes here if the formula is neither sat or unsat
+
     int literal_type = chooseVar(truth_vals);
+
     truth_vals[literal_type] = 0;
-    bool isSatFalse = DPLL(formula, truth_vals);
+
+    // run DPLL on the updated truth_table
+
+    bool isSatFalse = modDPLL(formula, truth_vals);
+
     if (isSatFalse)
         return true;
 
     truth_vals[literal_type] = 1;
-    return DPLL(formula, truth_vals);
+
+    return modDPLL(formula, truth_vals);
 }
 
 int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
+    // this boolean checks whether the formula has changed, exits loop if no change has happen
+    // loop exit happens - any clause is unsat
+
     bool hasChanged = true;
     while (hasChanged)
     {
         hasChanged = false;
         for (auto &clause : formula)
         {
-            if (clause.sat == 0)
-            {
-                return 0;
-            }
-            else if (clause.sat == -1)
+            if (clause.sat == -1)
             {
                 int ua = 0;
                 int sz = clause.c.size();
-                int index;
-                int assign_type;
+                int index = 0;
+                int assign_type = 0;
+
                 for (index = 0; index < sz; index++)
                 {
                     if (truth_vals[clause.c[index].abs_type] == -1)
@@ -218,16 +159,29 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
                         }
                     }
                 }
+
+                // if at least one of the literals has a bool val of 1, clause.sat = 1; and there are no unassigned vbles
+                // so no scope for this clause to be sat -> conflict
+
                 if (ua == 0 && clause.sat != 1)
                     return 0;
-                else if (ua == 1)
+
+                // assigns values if number of unassigned variables is 1 and the clause is still unassigned
+
+                else if (ua == 1 && clause.sat == -1)
                 {
+                    // finding the clause to be assigned
+
                     for (index = 0; index < sz; index++)
                     {
                         if (clause.c[index].type == assign_type)
                             break;
                     }
+
                     Literal &to_assign = clause.c[index];
+
+                    // doing what would make the clause true
+
                     if (to_assign.type > 0)
                         truth_vals[to_assign.abs_type] = 1;
                     else
@@ -245,102 +199,6 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     }
     return 1;
 }
-int UP(std::vector<Clause> formula, std::vector<int> truth_vals)
-{
-    bool hasChanged = true;
-    while (hasChanged)
-    {
-        hasChanged = false;
-        for (auto &clause : formula)
-        {
-            if (clause.sat == 0)
-                return 0;
-            else if (clause.sat == -1)
-            {
-                int num_ua = 0;
-                int assign_type = 0;
-                for (auto literal : clause.c)
-                {
-                    if (truth_vals[abs(literal.type)] == -1)
-                    {
-                        num_ua++;
-                        assign_type = literal.type;
-                    }
-                }
-                if (num_ua == 0)
-                    return 0;
-                if (num_ua == 1)
-                {
-                    int sz = clause.c.size();
-                    int index;
-                    for (index = 0; index < sz; index++)
-                    {
-                        if (clause.c[index].type == assign_type)
-                            break;
-                    }
-                    Literal &to_assign = clause.c[index];
-                    if (to_assign.type > 0)
-                    {
-                        if (truth_vals[to_assign.type] == 0)
-                            return 0;
-                        truth_vals[to_assign.type] = 1;
-                        to_assign.value = 1;
-                        clause.sat = 1;
-                        hasChanged = true;
-                        break;
-                    }
-                    else
-                    {
-                        if (truth_vals[-(to_assign.type)] == 1)
-                            return 0;
-                        truth_vals[-(to_assign.type)] = 0;
-                        to_assign.value = 1;
-                        clause.sat = 1;
-                        hasChanged = true;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    for (int i = 1; i < truth_vals.size(); i++)
-    {
-        if (truth_vals[i] == -1)
-            return -1;
-    }
-    return 1;
-}
-
-// int unit_prop(std::vector<Clause> formula, std::vector<int> &truth_vals){
-
-//     for (int iclause = 0; iclause < formula.size(); iclause++)
-//     {
-//         if (!formula[iclause].sat && formula[iclause].num_unassigned == 1)
-//         {
-//             formula[iclause].num_unassigned = 0;
-//             for (int i = 0; i < formula[iclause].c.size(); i++)
-//             {
-//                 if (formula[iclause].c[i].value == -1)
-//                 {
-//                     formula[iclause].c[i].value = 1;
-//                     if (formula[iclause].c[i].type > 0)
-//                     {
-//                         if (truth_vals[formula[iclause].c[i].type] == 0)
-//                             return -1;
-//                         truth_vals[formula[iclause].c[i].type] = 1;
-//                     }
-//                     else
-//                     {
-//                         if (truth_vals[formula[iclause].c[i].type] == 1)
-//                             return -1;
-//                         truth_vals[-formula[iclause].c[i].type] = 0;
-//                     }
-//                 }
-//             }
-//         }
-//     }
-//     return 0;
-// }
 
 void putLiterals(string s, vector<Literal> &clause)
 {
@@ -388,11 +246,16 @@ void numInfo(string s, int &nC, int &nV)
     nC = stoi(word);
     return;
 }
+
 int main()
 {
-    for (int k = 1; k < 100; k++)
+    int num_files = 2;
+    for (int file_no = 1; file_no < num_files; file_no++)
     {
-        string file = "sat_testcase/uf20-0" + to_string(k) + ".cnf";
+        string file = "sat_testcase/uf20-0" + to_string(file_no) + ".cnf";
+        
+        file = "input.txt";
+        
         ifstream inputFile(file);
 
         // Check if the file is successfully opened
@@ -427,7 +290,6 @@ int main()
         inputFile.close();
 
         std::vector<int> ttable(nVar + 1, -1);
-        if (not(modDPLL(formula, ttable)))
-            cout << k <<" Error!\n";
+        if (not(modDPLL(formula, ttable))) cout << "Error!";
     }
 }
