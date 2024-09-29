@@ -9,7 +9,13 @@
 using namespace std;
 // assuming that indicies are the literal names
 
-// class for Literal - its name and whether it is a positive literal or negative 
+// GLOBAL vbles
+
+vector<int> vble_order;
+
+
+
+// class for Literal - its name and whether it is a positive literal or negative
 class Literal
 {
 
@@ -37,7 +43,6 @@ public:
     }
 };
 
-
 // class containing a vector of literals and sat of the clause
 
 class Clause
@@ -60,7 +65,6 @@ public:
     }
 };
 
-
 // checks for the number of variables and clauses
 
 void numInfo(string s, int &nC, int &nV)
@@ -78,7 +82,7 @@ void numInfo(string s, int &nC, int &nV)
 
 // this is to put literals given a string containing the literals
 
-void putLiterals(string s, vector<Literal> &clause, map<int,int> vble_freq)
+void putLiterals(string s, vector<Literal> &clause, map<int, int> &vble_freq)
 {
     stringstream ss(s);
     string word;
@@ -94,8 +98,8 @@ void putLiterals(string s, vector<Literal> &clause, map<int,int> vble_freq)
         else
         {
             clause[i].type = tp;
-            vble_freq[tp] = vble_freq[tp] + 1;
             clause[i].abs_type = abs(tp);
+            vble_freq[abs(tp)] = vble_freq[abs(tp)] + 1;
             i++;
         }
     }
@@ -116,7 +120,7 @@ int numLiterals(string s)
     return count;
 }
 
-// to manually take in the formula 
+// to manually take in the formula
 
 std::vector<Clause> getFormula()
 {
@@ -146,18 +150,19 @@ std::vector<Clause> getFormula()
     return formula;
 }
 
-// heuristics for choosing the variable (right now its random)
+// heuristics for choosing the variable (right now its the most occuring vble)
 
-vector<int> vble_order;
-int chooseVar(std::vector<int>& truth_vals)
+int chooseVar(std::vector<int> &truth_vals)
 {
-    std::vector<int> unassigned;
-    for (int i = 1; i < truth_vals.size(); i++)
+    // std::vector<int> unassigned;
+    int sz = truth_vals.size();
+    for (int i = 0; i < sz; i++)
     {
-        if (truth_vals[i] == -1)
-            unassigned.push_back(i);
+        if (truth_vals[vble_order[i]] == -1)
+            return vble_order[i];
     }
-    return unassigned[rand() % unassigned.size()];
+    // control never reaches here
+    return 0;
 }
 
 // Does unit propgation returns -1 if decisions can be made; 0 if formula is unsat and 1 if formula sat
@@ -231,7 +236,6 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
                 }
             }
             // sat = (clause.sat == 1) && sat;
-            
         }
         // if (sat) return 1;
     }
@@ -245,32 +249,40 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
 
 // unit prop and decision put into a function
 
-void removeSat(std::vector<Clause>& formula){
+void removeSat(std::vector<Clause> &formula)
+{
     int sz = formula.size();
     priority_queue<int> to_remove;
-    for (int i = 0; i < sz; i++){
-        if (formula[i].sat == 1){
+    for (int i = 0; i < sz; i++)
+    {
+        if (formula[i].sat == 1)
+        {
             to_remove.push(i);
         }
     }
     // std::sort(to_remove.begin(), to_remove.end(), greater<int>());
     sz = to_remove.size();
-    for (int i = 0; i < sz; i++){
+    for (int i = 0; i < sz; i++)
+    {
         formula.erase(formula.begin() + to_remove.top());
         to_remove.pop();
     }
 }
 
-void setSat(std::vector<Clause>& formula, int chosen, int val){
-    for (auto & clause : formula){
-        for (int j = 0; j < clause.c.size(); j++){
-            if ((clause.c[j].type == chosen && val == 1 )|| (clause.c[j].type == -chosen && val == 0)){
+void setSat(std::vector<Clause> &formula, int chosen, int val)
+{
+    for (auto &clause : formula)
+    {
+        for (int j = 0; j < clause.c.size(); j++)
+        {
+            if ((clause.c[j].type == chosen && val == 1) || (clause.c[j].type == -chosen && val == 0))
+            {
                 clause.sat = 1;
             }
-            else{
+            else
+            {
                 clause.sat = -1;
             }
-            
         }
     }
 }
@@ -313,13 +325,14 @@ bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 
 int main()
 {
-    int num_files = 2;
+    int num_files = 1000;
     for (int file_no = 1; file_no < num_files; file_no++)
-    {
+    {   
         string file = "sat_testcase/uf20-0" + to_string(file_no) + ".cnf";
-        
-        file = "input.txt";
-        
+        cout << file_no << endl;
+
+        // file = "input.txt";
+
         ifstream inputFile(file);
 
         // Check if the file is successfully opened
@@ -342,10 +355,10 @@ int main()
         vector<Clause> formula(nClauses, Clause());
         int i = 0;
 
-        map<int,int> vble_freq;
-        for (int index = 1; index <= nVar; index++){
+        map<int, int> vble_freq;
+        for (int index = 1; index <= nVar; index++)
+        {
             vble_freq[index] = 0;
-            vble_freq[-index] = 0;
         }
 
         while (getline(inputFile, line) && line[0] != '%')
@@ -356,11 +369,21 @@ int main()
             formula[i].c = clause;
             i++;
         }
+        vector<pair<int, int>> pairs;
+
+        for (auto &it : vble_freq)
+        {
+            pairs.push_back(it);
+        }
+        sort(pairs.begin(), pairs.end(), [](auto &a, auto &b)
+             { return a.second > b.second; });
 
         inputFile.close();
 
+        for_each(pairs.begin(), pairs.end(), [](const auto &pair)
+                 { vble_order.push_back(pair.first); });
         std::vector<int> ttable(nVar + 1, -1);
-        if (not(DPLL(formula, ttable))) cout << "Error!";
-        
+        if (not(DPLL(formula, ttable)))
+            cout << "Error!";
     }
 }
