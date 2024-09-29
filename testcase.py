@@ -15,13 +15,15 @@ def generate_combinations_to_file(n, file_name, sample_size=10):
 
     # Open a file for writing
     with open(file_name, "w") as file:
+        file.write(f"p cnf {n} {2**n}\n")
         for idx, combo in enumerate(combinations):
             file.write(" ".join(combo) + "\n")
             if idx >= sample_size - 1:  # Sample size limit
                 break
+        file.write("%")
 
 
 # Generate combinations for numbers from 1 to 1024 and write to a file with a sample size limit
 generate_combinations_to_file(
-    14, "combinations.txt", sample_size=1048576
+    10, "input.txt", sample_size=1048576
 )  # Adjust sample size as needed

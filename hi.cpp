@@ -13,8 +13,6 @@ using namespace std;
 
 vector<int> vble_order;
 
-
-
 // class for Literal - its name and whether it is a positive literal or negative
 class Literal
 {
@@ -167,7 +165,7 @@ int chooseVar(std::vector<int> &truth_vals)
 
 // Does unit propgation returns -1 if decisions can be made; 0 if formula is unsat and 1 if formula sat
 
-int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
+vector<int> UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
     // this boolean checks whether the formula has changed, exits loop if no change has happen
     // loop exit happens - any clause is unsat
@@ -208,7 +206,10 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
                 // so no scope for this clause to be sat -> conflict
 
                 if (ua == 0 && clause.sat != 1)
-                    return 0;
+                {
+                    truth_vals[0] = 0;
+                    return truth_vals;
+                }
 
                 // assigns values if number of unassigned variables is 1 and the clause is still unassigned
 
@@ -242,9 +243,13 @@ int UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     for (int i = 1; i < truth_vals.size(); i++)
     {
         if (truth_vals[i] == -1)
-            return -1;
+        {
+            truth_vals[0] = -1;
+            return truth_vals;
+        }
     }
-    return 1;
+    truth_vals[0] = 1;
+    return truth_vals;
 }
 
 // unit prop and decision put into a function
@@ -261,8 +266,7 @@ void removeSat(std::vector<Clause> &formula)
         }
     }
     // std::sort(to_remove.begin(), to_remove.end(), greater<int>());
-    sz = to_remove.size();
-    for (int i = 0; i < sz; i++)
+    while (not(to_remove.empty()))
     {
         formula.erase(formula.begin() + to_remove.top());
         to_remove.pop();
@@ -278,6 +282,7 @@ void setSat(std::vector<Clause> &formula, int chosen, int val)
             if ((clause.c[j].type == chosen && val == 1) || (clause.c[j].type == -chosen && val == 0))
             {
                 clause.sat = 1;
+                break;
             }
             else
             {
@@ -286,7 +291,8 @@ void setSat(std::vector<Clause> &formula, int chosen, int val)
         }
     }
 }
-bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
+
+vector<int> DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 {
     // sat = -1 means that the formula is neither sat nor unsat
     // sat = 0 means that there is a conflict
@@ -294,12 +300,12 @@ bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 
     // remove sat formula?
     removeSat(formula);
-    int sat = UnitProp(formula, truth_vals);
+    vector<int> sat = UnitProp(formula, truth_vals);
 
-    if (sat == 0)
-        return false;
-    if (sat == 1)
-        return true;
+    if (sat[0] != -1)
+        return sat;
+    // if (sat == 1)
+    //     return true;
 
     // control goes here if the formula is neither sat or unsat
 
@@ -311,10 +317,10 @@ bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 
     // run DPLL on the updated truth_table
 
-    bool isSatFalse = DPLL(formula, truth_vals);
+    sat = DPLL(formula, truth_vals);
 
-    if (isSatFalse)
-        return true;
+    if (sat[0] == 1)
+        return sat;
 
     truth_vals[literal_type] = 1;
 
@@ -325,13 +331,13 @@ bool DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 
 int main()
 {
-    int num_files = 1000;
+    int num_files = 2;
     for (int file_no = 1; file_no < num_files; file_no++)
-    {   
+    {
         string file = "sat_testcase/uf20-0" + to_string(file_no) + ".cnf";
-        cout << file_no << endl;
+        // cout << file_no << endl;
 
-        // file = "input.txt";
+        file = "input.txt";
 
         ifstream inputFile(file);
 
@@ -382,8 +388,18 @@ int main()
 
         for_each(pairs.begin(), pairs.end(), [](const auto &pair)
                  { vble_order.push_back(pair.first); });
+
         std::vector<int> ttable(nVar + 1, -1);
-        if (not(DPLL(formula, ttable)))
-            cout << "Error!";
+
+        vector<int> assignment = DPLL(formula, ttable);
+        if (assignment[0] == 1)
+        {
+            cout << "SAT\n";
+            for (int i = 1; i < assignment.size(); i++)
+            {
+                cout << i << " : " << assignment[i] << endl;
+            }
+        }
+        else cout << "UNSAT\n";
     }
 }
