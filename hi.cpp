@@ -12,6 +12,7 @@ using namespace std;
 // GLOBAL vbles
 
 vector<int> vble_order;
+int num_decisions = 0;
 
 // class for Literal - its name and whether it is a positive literal or negative
 class Literal
@@ -152,6 +153,8 @@ std::vector<Clause> getFormula()
 
 int chooseVar(std::vector<int> &truth_vals)
 {
+    num_decisions++;
+    cout << num_decisions << endl;
     // std::vector<int> unassigned;
     int sz = truth_vals.size();
     for (int i = 0; i < sz; i++)
@@ -215,25 +218,15 @@ vector<int> UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
 
                 else if (ua == 1 && clause.sat == -1)
                 {
-                    // finding the clause to be assigned
-
-                    for (index = 0; index < sz; index++)
-                    {
-                        if (clause.c[index].type == assign_type)
-                            break;
-                    }
-
-                    Literal &to_assign = clause.c[index];
-
                     // doing what would make the clause true
 
-                    if (to_assign.type > 0)
-                        truth_vals[to_assign.abs_type] = 1;
+                    if (assign_type > 0)
+                        truth_vals[assign_type] = 1;
                     else
-                        truth_vals[to_assign.abs_type] = 0;
+                        truth_vals[-assign_type] = 0;
                     clause.sat = 1;
                     hasChanged = true;
-                    break;
+                    // break;
                 }
             }
             // sat = (clause.sat == 1) && sat;
@@ -299,7 +292,7 @@ vector<int> DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
     // sat = 1 means that the formula is true
 
     // remove sat formula?
-    removeSat(formula);
+    // removeSat(formula);
     vector<int> sat = UnitProp(formula, truth_vals);
 
     if (sat[0] != -1)
@@ -328,7 +321,21 @@ vector<int> DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
 
     return DPLL(formula, truth_vals);
 }
-
+void printSudoku(vector<int> assignments){
+    vector<int> sudoku;
+    int index = 0;
+    int grid_sz = 4;
+    for (int i = 0; i < assignments.size(); i++){
+        if (assignments[i] == 1 and i != 0){
+            sudoku.push_back((i % grid_sz) + 1);
+        }
+    }
+    for (int i = 0; i < sudoku.size(); i++){
+        
+        if (i % grid_sz == 0 and i != 0) cout << endl;
+        cout << sudoku[i] << " ";
+    }
+}
 int main()
 {
     int num_files = 2;
@@ -337,7 +344,7 @@ int main()
         string file = "sat_testcase/uf20-0" + to_string(file_no) + ".cnf";
         // cout << file_no << endl;
 
-        file = "input.txt";
+        file = "sudoku.cnf";
 
         ifstream inputFile(file);
 
@@ -401,5 +408,7 @@ int main()
             }
         }
         else cout << "UNSAT\n";
+        // cout << endl;
+        printSudoku(assignment);
     }
 }

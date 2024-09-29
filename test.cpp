@@ -189,4 +189,10 @@ int main()
 //     return DPLL(formula, truth_vals);
 // }
 // int UP(std::vector<Clause> formula, std::vector<int> truth_vals);
-// 
+// // for (index = 0; index < sz; index++)
+                    // {
+                    //     if (clause.c[index].type == assign_type)
+                    //         break;
+                    // }
+
+                    // Literal &to_assign = clause.c[index];
