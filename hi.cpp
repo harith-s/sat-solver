@@ -47,9 +47,9 @@ public:
 class Clause
 {
 public:
-    std::vector<Literal> c;
+    std::vector<int> c;
     int sat;
-    Clause(std::vector<Literal> v)
+    Clause(std::vector<int> v)
     {
         for (int i = 0; i < v.size(); i++)
         {
@@ -81,12 +81,16 @@ void numInfo(string s, int &nC, int &nV)
 
 // this is to put literals given a string containing the literals
 
-void putLiterals(string s, vector<Literal> &clause, map<int, int> &vble_freq)
+void putLiterals(string s, vector<int> &clause, map<int, int> &vble_freq)
 {
     stringstream ss(s);
     string word;
-    int i = 0;
     int tp;
+
+    // first position for unsat/sat/unassigned
+
+    clause.push_back(-1);
+
     while (ss >> word)
     {
         tp = stoi(word);
@@ -96,10 +100,8 @@ void putLiterals(string s, vector<Literal> &clause, map<int, int> &vble_freq)
         }
         else
         {
-            clause[i].type = tp;
-            clause[i].abs_type = abs(tp);
+            clause.push_back(tp);
             vble_freq[abs(tp)] = vble_freq[abs(tp)] + 1;
-            i++;
         }
     }
 }
@@ -130,7 +132,7 @@ std::vector<Clause> getFormula()
     std::cin >> num_clauses;
     for (int i = 0; i < num_clauses; i++)
     {
-        std::vector<Literal> clause;
+        std::vector<int> clause;
         int num_lit;
         std::cout << "Input number of literals in this clause: ";
 
@@ -142,7 +144,7 @@ std::vector<Clause> getFormula()
 
             std::cin >> k;
 
-            clause.push_back(Literal(k));
+            clause.push_back(k);
         }
         formula.push_back(Clause(clause));
     }
@@ -150,25 +152,158 @@ std::vector<Clause> getFormula()
 }
 
 // heuristics for choosing the variable (right now its the most occuring vble)
+// int chooseVar(std::vector<int> &truth_vals, vector<Clause> formula){
+//     int type = 0; int max = 0;
+//     for (auto & clause : formula){
+//         if (clause.c.size() == 2){
 
-int chooseVar(std::vector<int> &truth_vals)
+//         }
+//     }
+// }
+int chooseVar(std::vector<int> truth_vals, vector<vector<int>> formula)
 {
     num_decisions++;
     cout << num_decisions << endl;
-    // std::vector<int> unassigned;
-    int sz = truth_vals.size();
+    std::vector<int> unassigned;
+    for (int i = 1; i < truth_vals.size(); i++)
+    {
+        if (truth_vals[i] == -1)
+            unassigned.push_back(i);
+    }
+    return unassigned[rand() % unassigned.size()];
+}
+// unit prop and decision put into a function
+
+vector<vector<int>> removeSat(std::vector<vector<int>> formula)
+{
+    int sz = formula.size();
+    priority_queue<int> to_remove;
     for (int i = 0; i < sz; i++)
     {
-        if (truth_vals[vble_order[i]] == -1)
-            return vble_order[i];
+        if (formula[i][0] == 1)
+        {
+            to_remove.push(i);
+        }
     }
-    // control never reaches here
-    return 0;
+    while (not(to_remove.empty()))
+    {
+        formula.erase(formula.begin() + to_remove.top());
+        to_remove.pop();
+    }
+    return formula;
+}
+
+void removeSatClausesUP(vector<vector<int>> &formula, int assign_type)
+{
+    int sz = formula.size();
+    priority_queue<int> to_remove;
+    for (int i = 0; i < sz; i++)
+    {
+        for (int j = 1; j < formula[i].size(); j++)
+        {
+            if (formula[i][j] == assign_type)
+            {
+                to_remove.push(i);
+                break;
+            }
+        }
+    }
+    while (not(to_remove.empty()))
+    {
+        formula.erase(formula.begin() + to_remove.top());
+        to_remove.pop();
+    }
+    return;
+}
+vector<vector<int>> removeSat(vector<vector<int>> formula, int assign_type)
+{
+    int sz = formula.size();
+    priority_queue<int> to_remove;
+    for (int i = 0; i < sz; i++)
+    {
+        for (int j = 1; j < formula[i].size(); j++)
+        {
+            if (formula[i][j] == assign_type)
+
+            {
+                to_remove.push(i);
+                break;
+            }
+        }
+    }
+    while (not(to_remove.empty()))
+    {
+        formula.erase(formula.begin() + to_remove.top());
+        to_remove.pop();
+    }
+    return formula;
+}
+
+vector<vector<int>> setSat(std::vector<vector<int>> formula, int chosen, int val)
+{
+    for (auto &clause : formula)
+    {
+        for (int j = 1; j < clause.size(); j++)
+        {
+            if ((clause[j] == chosen && val == 1) || (clause[j] == -chosen && val == 0))
+            {
+                clause[0] = 1;
+                break;
+            }
+            else
+            {
+                clause[0] = -1;
+            }
+        }
+    }
+    return formula;
+}
+
+
+vector<vector<int>> removePos(vector<vector<int>> formula, int type)
+{
+
+    // called when we assign 0 to a variable
+    // the first value of -1 won't cause an issue as the type removed here is positive
+
+    for (auto &clause : formula)
+    {
+        clause.erase(std::remove(clause.begin(), clause.end(), type), clause.end());
+    }
+    return formula;
+}
+
+vector<vector<int>> removeNeg(vector<vector<int>> formula, int type)
+{
+
+    // called when we assign 0 to a variable
+    // the first value of -1 causes an issue as we denote sat by -1
+    // we don't do anything in case type == 1 slight innefficiency, but can live with it
+
+    if (type != 1)
+    {
+        for (auto &clause : formula)
+        {
+            clause.erase(std::remove(clause.begin(), clause.end(), -type), clause.end());
+        }
+    }
+    else{
+        for (auto & clause : formula){
+            vector<int> temp = clause;
+            temp.erase(std::remove(temp.begin(), temp.end(), -1), temp.end());
+            clause.clear();
+            clause.push_back(-1);
+            for(int i = 0; i < temp.size(); i++){
+                clause.push_back(temp[i]);
+            }
+        }
+    }
+    return formula;
 }
 
 // Does unit propgation returns -1 if decisions can be made; 0 if formula is unsat and 1 if formula sat
 
-vector<int> UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
+vector<int> UnitProp(std::vector<vector<int>> formula, std::vector<int> truth_vals)
 {
     // this boolean checks whether the formula has changed, exits loop if no change has happen
     // loop exit happens - any clause is unsat
@@ -177,61 +312,94 @@ vector<int> UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     while (hasChanged)
     {
         hasChanged = false;
-        // bool sat = false;
         for (auto &clause : formula)
         {
-            if (clause.sat == -1)
+            // I don't even need this condition now but let it be
+            if (clause[0] == -1)
             {
-                int ua = 0;
-                int sz = clause.c.size();
-                int index = 0;
                 int assign_type = 0;
 
-                for (index = 0; index < sz; index++)
-                {
-                    if (truth_vals[clause.c[index].abs_type] == -1)
-                    {
-                        ua++;
-                        assign_type = clause.c[index].type;
-                    }
-                    else
-                    {
-                        Literal literal = clause.c[index];
-                        if ((literal.type > 0 && truth_vals[literal.abs_type] == 1) || (literal.type < 0 && truth_vals[literal.abs_type] == 0))
-                        {
-                            clause.sat = 1;
-                            break; // clause is sat
-                        }
-                    }
-                }
+                // no more variables left to assign
 
-                // if at least one of the literals has a bool val of 1, clause.sat = 1; and there are no unassigned vbles
-                // so no scope for this clause to be sat -> conflict
-
-                if (ua == 0 && clause.sat != 1)
+                if (clause.size() == 1)
                 {
                     truth_vals[0] = 0;
                     return truth_vals;
                 }
+                if (clause.size() == 2)
+                {
+                    assign_type = clause[1];
+
+                    if (assign_type > 0)
+                    {
+                        truth_vals[assign_type] = 1;
+                        formula = removeNeg(formula, assign_type);
+                        removeSatClausesUP(formula, assign_type);
+                    }
+                    else
+                    {
+                        truth_vals[-assign_type] = 0;
+                        formula = removePos(formula, -assign_type);
+                        removeSatClausesUP(formula, assign_type);
+                    }
+                    // clause[0] = 1;
+                    hasChanged = true;
+
+                    // break;
+                }
+                // for (index = 1; index < sz; index++)
+                // {
+                //     int literal_type = clause[index];
+                //     if (truth_vals[abs(clause[index])] == -1)
+                //     {
+                //         ua++;
+                //         assign_type = clause[index];
+                //     }
+                //     else
+                //     {
+                //         if ((literal_type > 0 && truth_vals[abs(literal_type)] == 1) || (literal_type < 0 && truth_vals[abs(literal_type)] == 0))
+                //         {
+                //             clause[0] = 1;
+                //             break; // clause is sat
+                //         }
+                //     }
+                // }
+
+                // if at least one of the literals has a bool val of 1, clause.sat = 1; and there are no unassigned vbles
+                // so no scope for this clause to be sat -> conflict
+
+                // if (ua == 0 && clause[0] != 1)
+                // {
+                //     truth_vals[0] = 0;
+                //     return truth_vals;
+                // }
 
                 // assigns values if number of unassigned variables is 1 and the clause is still unassigned
 
-                else if (ua == 1 && clause.sat == -1)
-                {
-                    // doing what would make the clause true
+                // else if (ua == 1 && clause[0] == -1)
+                // {
+                //     // doing what would make the clause true
 
-                    if (assign_type > 0)
-                        truth_vals[assign_type] = 1;
-                    else
-                        truth_vals[-assign_type] = 0;
-                    clause.sat = 1;
-                    hasChanged = true;
-                    // break;
-                }
+                //     if (assign_type > 0)
+                //     {
+                //         truth_vals[assign_type] = 1;
+                //         formula = removeNeg(formula, assign_type);
+                //         removeSatClauses(formula, assign_type);
+                //     }
+                //     else
+                //     {
+                //         truth_vals[-assign_type] = 0;
+                //         formula = removePos(formula, assign_type);
+                //         removeSatClauses(formula, assign_type);
+
+                //     }
+                //     clause[0] = 1;
+                //     hasChanged = true;
+
+                //     break;
+                // }
             }
-            // sat = (clause.sat == 1) && sat;
         }
-        // if (sat) return 1;
     }
     for (int i = 1; i < truth_vals.size(); i++)
     {
@@ -245,94 +413,62 @@ vector<int> UnitProp(std::vector<Clause> formula, std::vector<int> truth_vals)
     return truth_vals;
 }
 
-// unit prop and decision put into a function
-
-void removeSat(std::vector<Clause> &formula)
-{
-    int sz = formula.size();
-    priority_queue<int> to_remove;
-    for (int i = 0; i < sz; i++)
-    {
-        if (formula[i].sat == 1)
-        {
-            to_remove.push(i);
-        }
-    }
-    // std::sort(to_remove.begin(), to_remove.end(), greater<int>());
-    while (not(to_remove.empty()))
-    {
-        formula.erase(formula.begin() + to_remove.top());
-        to_remove.pop();
-    }
-}
-
-void setSat(std::vector<Clause> &formula, int chosen, int val)
-{
-    for (auto &clause : formula)
-    {
-        for (int j = 0; j < clause.c.size(); j++)
-        {
-            if ((clause.c[j].type == chosen && val == 1) || (clause.c[j].type == -chosen && val == 0))
-            {
-                clause.sat = 1;
-                break;
-            }
-            else
-            {
-                clause.sat = -1;
-            }
-        }
-    }
-}
-
-vector<int> DPLL(std::vector<Clause> formula, std::vector<int> truth_vals)
+vector<int> DPLL(std::vector<vector<int>> formula, std::vector<int> truth_vals)
 {
     // sat = -1 means that the formula is neither sat nor unsat
     // sat = 0 means that there is a conflict
     // sat = 1 means that the formula is true
 
-    // remove sat formula?
-    // removeSat(formula);
     vector<int> sat = UnitProp(formula, truth_vals);
 
     if (sat[0] != -1)
         return sat;
-    // if (sat == 1)
-    //     return true;
 
     // control goes here if the formula is neither sat or unsat
 
-    int literal_type = chooseVar(truth_vals);
+    int literal_type = chooseVar(truth_vals, formula);
 
-    truth_vals[literal_type] = 0;
+    // cout << literal_type << endl;
 
-    setSat(formula, literal_type, 0);
+    truth_vals[literal_type] = 1;
+
+    // removeNeg(formula, literal_type);
+
+    // setSat(formula, literal_type, 1);
 
     // run DPLL on the updated truth_table
 
-    sat = DPLL(formula, truth_vals);
+    sat = DPLL(removeNeg(removeSat(formula, literal_type), literal_type), truth_vals);
 
     if (sat[0] == 1)
         return sat;
 
-    truth_vals[literal_type] = 1;
+    truth_vals[literal_type] = 0;
 
-    setSat(formula, literal_type, 1);
+    // removePos(formula, literal_type);
 
-    return DPLL(formula, truth_vals);
+    // setSat(formula, literal_type, 0);
+
+    return DPLL(removePos(removeSat(formula, -literal_type), literal_type), truth_vals);
 }
-void printSudoku(vector<int> assignments){
+
+void printSudoku(vector<int> assignments)
+{
     vector<int> sudoku;
     int index = 0;
     int grid_sz = 4;
-    for (int i = 0; i < assignments.size(); i++){
-        if (assignments[i] == 1 and i != 0){
+    for (int i = 0; i < assignments.size(); i++)
+    {
+        if (assignments[i] == 1 && i != 0)
+        {
             sudoku.push_back((i % grid_sz) + 1);
         }
     }
-    for (int i = 0; i < sudoku.size(); i++){
-        
-        if (i % grid_sz == 0 and i != 0) cout << endl;
+    for (int i = 0; i < sudoku.size(); i++)
+    {
+
+        if (i % grid_sz == 0 && i != 0)
+            cout << endl;
         cout << sudoku[i] << " ";
     }
 }
@@ -345,6 +481,7 @@ int main()
         // cout << file_no << endl;
 
         file = "sudoku.cnf";
+        file = "naive.txt";
 
         ifstream inputFile(file);
 
@@ -365,8 +502,8 @@ int main()
         }
         numInfo(line, nClauses, nVar);
 
-        vector<Clause> formula(nClauses, Clause());
-        int i = 0;
+        vector<vector<int>> formula;
+        // int i = 0;
 
         map<int, int> vble_freq;
         for (int index = 1; index <= nVar; index++)
@@ -377,10 +514,10 @@ int main()
         while (getline(inputFile, line) && line[0] != '%')
         {
             int n = numLiterals(line);
-            vector<Literal> clause(n, Literal(0));
+            vector<int> clause;
             putLiterals(line, clause, vble_freq);
-            formula[i].c = clause;
-            i++;
+            formula.push_back(clause);
+            // i++;
         }
         vector<pair<int, int>> pairs;
 
@@ -389,6 +526,7 @@ int main()
             pairs.push_back(it);
         }
         sort(pairs.begin(), pairs.end(), [](auto &a, auto &b)
+
              { return a.second > b.second; });
 
         inputFile.close();
@@ -407,8 +545,9 @@ int main()
                 cout << i << " : " << assignment[i] << endl;
             }
         }
-        else cout << "UNSAT\n";
+        else
+            cout << "UNSAT\n";
         // cout << endl;
-        printSudoku(assignment);
+        // printSudoku(assignment);
     }
 }
