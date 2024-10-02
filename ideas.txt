@@ -1,0 +1,11 @@
+since I don't need random access or order in the clause, it would be better to use sets for deletion
+How do I check unit?
+    I can maintain num assigned or remove literals, both work
+    if I maintain num_assigned, it would still have to send it as a copy
+    so better to remove the literals
+
+might be better to do pure lit elim all the time as well, it would take nlogn time worst case
+
+since its a vector of clauses, it might be better to maintain a variable called sat or not instead of removing the clauses entirely
+
+moreover, I can do the watched literals thing, if there are more than two unassigned variables, just break
